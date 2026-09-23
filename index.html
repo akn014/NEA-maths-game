@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maths Quest</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section id="login-screen">
+      <h1>Who's Playing?</h1>
+      <div id="existing-students" class="button-list"></div>
+      <p>New student? Enter your name:</p>
+      <label class="sr-only" for="new-student-name">Your name</label>
+      <input type="text" id="new-student-name" placeholder="Your name" maxlength="30">
+      <button id="create-student-btn">Continue</button>
+    </section>
+
+    <section id="start_screen" hidden>
+      <h1>Maths Quest</h1>
+      <p>Test your maths skills and earn rewards.</p>
+      <button id="start_btn">Start Game</button>
+      <button id="view_stats_btn" class="secondary">My Stats</button>
+    </section>
+
+    <section id="category-screen" hidden>
+      <h1>Choose a Category</h1>
+      <button class="category-btn" data-category="speed">Speed Practice</button>
+      <button class="category-btn" data-category="shapes">Shapes and Space</button>
+    </section>
+
+    <section id="topic-screen" hidden>
+      <h1>Choose a Topic</h1>
+      <div class="topic-group" id="group-speed">
+        <button class="topic-btn" data-topic="+">Addition</button>
+        <button class="topic-btn" data-topic="-">Subtraction</button>
+        <button class="topic-btn" data-topic="x">Multiplication</button>
+        <button class="topic-btn" data-topic="/">Division</button>
+        <button class="topic-btn" data-topic="mixed">Mixed</button>
+      </div>
+      <div class="topic-group" id="group-shapes" hidden>
+        <button class="topic-btn" data-topic="area">Area</button>
+        <button class="topic-btn" data-topic="perimeter">Perimeter</button>
+        <button class="topic-btn" data-topic="shapes-mixed">Mixed</button>
+      </div>
+    </section>
+
+    <section id="stats-screen" hidden>
+      <h1>My Stats</h1>
+      <p id="stat_rounds">Rounds played: 0</p>
+      <p id="stat_speed">Average time per correct answer: 0s</p>
+      <p id="stat_questions">Total questions answered: 0</p>
+      <p id="stat_accuracy">Overall accuracy: 0%</p>
+      <p id="stat_difficulty">Best difficulty reached: 1</p>
+      <button id="stats_back_btn" class="secondary">Back</button>
+    </section>
+
+    <section id="game-screen" hidden>
+      <div class="game-bar"><p id="timer">Time left: 60s</p><p id="coins">Coins: 0</p><button id="pause_btn" class="secondary">Pause</button></div>
+      <h2 id="question">Question goes here</h2>
+      <svg id="shape-display" width="310" height="310" hidden aria-label="Maths shape diagram"></svg>
+      <label class="sr-only" for="answer_input">Your answer</label>
+      <input type="number" id="answer_input" inputmode="numeric" placeholder="Your answer">
+      <button id="submit_btn">Submit Answer</button>
+      <p id="feedback" aria-live="polite"></p>
+    </section>
+
+    <section id="pause-menu" hidden>
+      <h1>Paused</h1>
+      <button id="resume_btn">Resume</button>
+      <button id="restart_btn" class="secondary">Restart</button>
+      <button id="home_btn" class="secondary">Return to Home</button>
+      <button id="change_topic_btn" class="secondary">Change Topic</button>
+    </section>
+
+    <section id="results-screen" hidden>
+      <h1>Round Complete!</h1>
+      <p id="final_accuracy">Accuracy: 0%</p>
+      <p id="average_time">Average time per question: 0s</p>
+      <p id="final_score">You answered 0 questions correctly</p>
+      <p id="best_score">Best: 0</p>
+      <p id="final_coins">Coins: 0</p>
+      <button id="play_again_btn">Play Again</button>
+      <button id="results_home_btn" class="secondary">Return to Home</button>
+    </section>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
