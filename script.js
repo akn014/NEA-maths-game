@@ -17,6 +17,9 @@ const groupSpeed = document.getElementById("group-speed");
 const groupShapes = document.getElementById("group-shapes");
 const groupData = document.getElementById("group-data");
 
+const countScreen = document.getElementById("count-screen");
+const countButtons = document.querySelectorAll(".count-btn");
+
 const statsScreen = document.getElementById("stats-screen");
 const viewStatsButton = document.getElementById("view_stats_btn");
 const statsBackButton = document.getElementById("stats_back_btn");
@@ -43,6 +46,7 @@ const topicButtons = document.querySelectorAll(".topic-btn");  // queryselectora
 const coinsDisplay = document.getElementById("coins");
 const questionDisplay = document.getElementById("question");
 const timerDisplay = document.getElementById("timer");
+const questionProgress = document.getElementById("question_progress");
 const bestScoreDisplay = document.getElementById("best_score");
 const shapeDisplay = document.getElementById("shape-display");
 const answerInput = document.getElementById("answer_input");
@@ -78,6 +82,11 @@ let timeLeft = ROUND_TIME;
 let countdownInterval;
 let selectedCategory = "speed";
 let shapeDimensions = {};
+
+let gameMode = "timed";        // "timed" = 60 second round, "counted" = choose number of questions
+let totalQuestions = 10;       // how many questions in a counted round
+let secondsElapsed = 0;        // counts UP in counted mode, used for average time
+let waitingForNext = false;    // true during the 1 second feedback pause, stops double submits
 
 let correctAnswer = 0;
 let correctAnswer2 = 0;     // the y answer, only used when two answers are needed
@@ -174,13 +183,32 @@ categoryButtons.forEach(function(button) {
     });
 });
 
-
 topicButtons.forEach(function(button) {
 
     button.addEventListener("click", function() {
 
         selectedTopic = button.dataset.topic;
 
+        if (selectedCategory === "data") {
+
+            // Data and Graphs: ask how many questions first
+            gameMode = "counted";
+            topicScreen.hidden = true;
+            countScreen.hidden = false;
+
+        } else {
+
+            gameMode = "timed";
+            startGame();
+        }
+    });
+});
+
+countButtons.forEach(function(button) {
+
+    button.addEventListener("click", function() {
+
+        totalQuestions = Number(button.dataset.count);  // dataset gives text, Number makes it a number
         startGame();
     });
 });
@@ -194,29 +222,53 @@ function startGame() {
     difficulty = 1;
     correctStreak = 0;
     incorrectStreak = 0;
+    secondsElapsed = 0;
+    waitingForNext = false;
 
     topicScreen.hidden = true;
+    countScreen.hidden = true;
     resultsScreen.hidden = true;
     gameScreen.hidden = false;
 
-    timeLeft = ROUND_TIME;
-    timerDisplay.textContent = "Time left: " + timeLeft + "s";
+    if (gameMode === "timed") {
 
-    clearInterval(countdownInterval);  //  stops any previous countdown
+        timeLeft = ROUND_TIME;
+        timerDisplay.textContent = "Time left: " + timeLeft + "s";
+        timerDisplay.hidden = false;
+        questionProgress.hidden = true;
 
-    countdownInterval = setInterval(function() {   // set interval runs every second subtracting 1 from time left
+    } else {
 
-        timeLeft--;  // subtracts 1 from timeleft
-        timerDisplay.textContent = "Time left: " + timeLeft + "s";  // updates time on screen to the new time left
+        timerDisplay.hidden = true;       // no countdown in counted mode
+        questionProgress.hidden = false;
+    }
 
-        if (timeLeft <= 0) {   // if it gets to 0 we stop the interval and call end round
-            clearInterval(countdownInterval);
-            endRound();
+    startRoundTimer();
+    generateQuestion();
+}
+
+function startRoundTimer() {
+
+    clearInterval(countdownInterval);  // stops any previous timer
+
+    countdownInterval = setInterval(function() {
+
+        if (gameMode === "timed") {
+
+            timeLeft--;
+            timerDisplay.textContent = "Time left: " + timeLeft + "s";
+
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                endRound();
+            }
+
+        } else {
+
+            secondsElapsed++;  // counted mode just counts up, so we can work out average time
         }
 
     }, 1000);
-
-    generateQuestion();
 }
 
 //    PAUSE MENU
@@ -270,21 +322,10 @@ function resumeGame() {
     pauseMenu.hidden = true;
     gameScreen.hidden = false;
 
-    //  restarts the countdown from wherever timeLeft currently is, rather than resetting it
-    countdownInterval = setInterval(function() {
+    startRoundTimer();
 
-        timeLeft--;
-        timerDisplay.textContent = "Time left: " + timeLeft + "s";
-
-        if (timeLeft <= 0) {
-            clearInterval(countdownInterval);
-            endRound();
-        }
-
-    }, 1000);
 }
-
-restartButton.addEventListener("click", function() {
+    restartButton.addEventListener("click", function() {
 
     pauseMenu.hidden = true;
     startGame();  //  reuses your existing startGame function to reset everything
@@ -527,6 +568,12 @@ function generateQuestion() {
 
     }
 
+        waitingForNext = false;
+
+    if (gameMode === "counted") {
+        questionProgress.textContent = "Question " + (questionsAttempted + 1) + " / " + totalQuestions;
+    }
+
     coinsDisplay.textContent = "Coins: " + coins;
 
     answerInput.value = "";
@@ -600,6 +647,10 @@ function drawLShape(dims) {
 
 function checkAnswer() {
 
+        if (waitingForNext) {
+        return;   // already answered, ignore extra Enter or clicks
+    }
+
     let playerAnswer = Number(answerInput.value); // str -> num
 
     // checks if either box is empty
@@ -667,6 +718,8 @@ function checkAnswer() {
 
     coinsDisplay.textContent = "Coins: " + coins;
 
+    waitingForNext = true;
+
     // gives user 1 second to read feedback
     setTimeout(nextQuestion, 1000);
 }
@@ -676,8 +729,19 @@ function checkAnswer() {
 
 function nextQuestion() {
 
-    if (timeLeft > 0) {
-        generateQuestion();
+    if (gameMode === "timed") {
+
+        if (timeLeft > 0) {
+            generateQuestion();
+        }
+
+    } else {
+
+        if (questionsAttempted >= totalQuestions) {
+            endRound();
+        } else {
+            generateQuestion();
+        }
     }
 }
 
@@ -709,13 +773,23 @@ function endRound() {
     let student = allStudents[currentStudent];
     let overallStats = student.overallStats;
 
+    clearInterval(countdownInterval);
+
+    let roundTime;
+
+    if (gameMode === "timed") {
+        roundTime = ROUND_TIME;
+    } else {
+        roundTime = secondsElapsed;
+    }
+
     gameScreen.hidden = true;
     resultsScreen.hidden = false;
 
     //  update overall stats with this round's numbers
     overallStats.totalQuestions = overallStats.totalQuestions + questionsAttempted;
     overallStats.totalCorrect = overallStats.totalCorrect + correctAnswers;
-    overallStats.totalTimePlayed = overallStats.totalTimePlayed + ROUND_TIME;
+    overallStats.totalTimePlayed = overallStats.totalTimePlayed + roundTime;
     overallStats.roundsPlayed = overallStats.roundsPlayed + 1;
 
     // checks if this rounds difficulty is harder than previous
@@ -734,22 +808,30 @@ function endRound() {
     let averageTime = 0;
 
     if (questionsAttempted > 0) {
-        averageTime = (ROUND_TIME / questionsAttempted).toFixed(1);
+        averageTime = (roundTime / questionsAttempted).toFixed(1);
     }
 
     averageTimeDisplay.textContent = "Average time per question: " + averageTime + "s";
 
-    // best score is now stored on this student, not shared by everyone
-    if (correctAnswers > student.bestScore) {
+    // best score only counts for timed rounds
+    if (gameMode === "timed") {
 
-        student.bestScore = correctAnswers;
-        bestScoreDisplay.textContent = "New best! " + student.bestScore;
+        bestScoreDisplay.hidden = false;
+
+        if (correctAnswers > student.bestScore) {
+
+            student.bestScore = correctAnswers;
+            bestScoreDisplay.textContent = "New best! " + student.bestScore;
+
+        } else {
+
+            bestScoreDisplay.textContent = "Best: " + student.bestScore;
+        }
 
     } else {
 
-        bestScoreDisplay.textContent = "Best: " + student.bestScore;
+        bestScoreDisplay.hidden = true;
     }
-
     // saves everything for every student in one go
     saveAllStudents();
 }
