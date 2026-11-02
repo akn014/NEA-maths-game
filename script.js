@@ -1,122 +1,880 @@
+//  HTML INFO
+
 const loginScreen = document.getElementById("login-screen");
 const existingStudentsDiv = document.getElementById("existing-students");
 const newStudentInput = document.getElementById("new-student-name");
 const createStudentButton = document.getElementById("create-student-btn");
+
 const startScreen = document.getElementById("start_screen");
 const gameScreen = document.getElementById("game-screen");
 const resultsScreen = document.getElementById("results-screen");
 const topicScreen = document.getElementById("topic-screen");
+
 const categoryScreen = document.getElementById("category-screen");
+const categoryButtons = document.querySelectorAll(".category-btn");
+
 const groupSpeed = document.getElementById("group-speed");
 const groupShapes = document.getElementById("group-shapes");
+const groupData = document.getElementById("group-data");
+
 const statsScreen = document.getElementById("stats-screen");
+const viewStatsButton = document.getElementById("view_stats_btn");
+const statsBackButton = document.getElementById("stats_back_btn");
+
+const statRounds = document.getElementById("stat_rounds");
+const statQuestions = document.getElementById("stat_questions");
+const statAccuracy = document.getElementById("stat_accuracy");
+const statDifficulty = document.getElementById("stat_difficulty");
+const statSpeed = document.getElementById("stat_speed");
+
+const pauseButton = document.getElementById("pause_btn");
 const pauseMenu = document.getElementById("pause-menu");
+const resumeButton = document.getElementById("resume_btn");
+const restartButton = document.getElementById("restart_btn");
+const homeButton = document.getElementById("home_btn");
+const changeTopicButton = document.getElementById("change_topic_btn");
+const resultsHomeButton = document.getElementById("results_home_btn");
+
+const startButton = document.getElementById("start_btn");
+const submitButton = document.getElementById("submit_btn");
+const playAgainButton = document.getElementById("play_again_btn");
+const topicButtons = document.querySelectorAll(".topic-btn");  // queryselectorall grabs every element with topic-btn as class
+
 const coinsDisplay = document.getElementById("coins");
 const questionDisplay = document.getElementById("question");
 const timerDisplay = document.getElementById("timer");
 const bestScoreDisplay = document.getElementById("best_score");
 const shapeDisplay = document.getElementById("shape-display");
 const answerInput = document.getElementById("answer_input");
+const answerInput2 = document.getElementById("answer_input_2");
 const feedback = document.getElementById("feedback");
 
-let allStudents = JSON.parse(localStorage.getItem("allStudents") || "{}");
-let currentStudent = null;
-let questionsAttempted = 0, correctAnswers = 0, difficulty = 1, correctStreak = 0, incorrectStreak = 0, coins = 0;
-let selectedTopic = "mixed", selectedCategory = "speed", shapeDimensions = {}, correctAnswer = 0, countdownInterval;
-const ROUND_TIME = 60;
-let timeLeft = ROUND_TIME;
+const finalScore = document.getElementById("final_score");
+const finalCoins = document.getElementById("final_coins");
+const finalAccuracy = document.getElementById("final_accuracy");
+const averageTimeDisplay = document.getElementById("average_time");
 
-function saveAllStudents() { localStorage.setItem("allStudents", JSON.stringify(allStudents)); }
-function newStudentData() { return { overallStats: { totalQuestions: 0, totalCorrect: 0, totalTimePlayed: 0, bestDifficulty: 1, roundsPlayed: 0 }, bestScore: 0 }; }
-function studentData() { return allStudents[currentStudent]; }
+
+//    GAME VARIABLES
+
+let allStudents = {};  //  creates an empty array that will hold every students data 
+let currentStudent = null;  //  creates an empty box to hold every students data 
+
+let savedStudents = localStorage.getItem("allStudents");  //  fetches previously saved student data from browsers storage 
+
+if (savedStudents !== null) {
+    allStudents = JSON.parse(savedStudents);  //  if something was found when it was fetched it is converted and stored in allStudents
+}
+
+let questionsAttempted = 0;
+let correctAnswers = 0;
+let difficulty = 1; // 1 = easy, 2 = med, 3 = hard
+let selectedTopic = "mixed";
+let correctStreak = 0;
+let incorrectStreak = 0;
+let coins = 0;
+const ROUND_TIME = 60; // seconds, const means value can never be reassigned
+let timeLeft = ROUND_TIME;
+let countdownInterval;
+let selectedCategory = "speed";
+let shapeDimensions = {};
+
+let correctAnswer = 0;
+let correctAnswer2 = 0;     // the y answer, only used when two answers are needed
+let askingBoth = false;     // true when the question needs two answers
+
+
+function createNewStudent(name) {
+
+    //  
+
+    allStudents[name] = {
+        overallStats: {
+            totalQuestions: 0,
+            totalCorrect: 0,
+            totalTimePlayed: 0,
+            bestDifficulty: 1,
+            roundsPlayed: 0
+        },
+        bestScore: 0
+    };
+
+    saveAllStudents();
+}
+
+function saveAllStudents() {
+    localStorage.setItem("allStudents", JSON.stringify(allStudents));
+}
+
 
 function showLoginScreen() {
-  existingStudentsDiv.innerHTML = "";
-  Object.keys(allStudents).forEach((name) => {
-    const button = document.createElement("button"); button.textContent = name;
-    button.addEventListener("click", () => logInAsStudent(name)); existingStudentsDiv.appendChild(button);
-  });
+
+    existingStudentsDiv.innerHTML = "";
+
+    for (let name in allStudents) {
+
+        let button = document.createElement("button");
+        button.textContent = name;
+
+        button.addEventListener("click", function() {
+            logInAsStudent(name);
+        });
+
+        existingStudentsDiv.appendChild(button);
+    }
 }
-function logInAsStudent(name) { currentStudent = name; loginScreen.hidden = true; startScreen.hidden = false; }
-createStudentButton.addEventListener("click", () => {
-  const name = newStudentInput.value.trim(); if (!name) return;
-  if (!allStudents[name]) { allStudents[name] = newStudentData(); saveAllStudents(); }
-  logInAsStudent(name);
+
+function logInAsStudent(name) {
+
+    currentStudent = name;
+
+    loginScreen.hidden = true;
+    startScreen.hidden = false;
+}
+
+createStudentButton.addEventListener("click", function() {
+
+    let name = newStudentInput.value.trim();
+
+    if (name === "") {
+        return;
+    }
+
+    if (!allStudents[name]) {
+        createNewStudent(name);
+    }
+
+    logInAsStudent(name);
 });
-newStudentInput.addEventListener("keydown", (event) => { if (event.key === "Enter") createStudentButton.click(); });
+
 showLoginScreen();
 
-document.getElementById("start_btn").addEventListener("click", () => { startScreen.hidden = true; categoryScreen.hidden = false; });
-document.querySelectorAll(".category-btn").forEach((button) => button.addEventListener("click", () => {
-  selectedCategory = button.dataset.category; categoryScreen.hidden = true; topicScreen.hidden = false;
-  groupSpeed.hidden = selectedCategory !== "speed"; groupShapes.hidden = selectedCategory !== "shapes";
-}));
-document.querySelectorAll(".topic-btn").forEach((button) => button.addEventListener("click", () => { selectedTopic = button.dataset.topic; startGame(); }));
+//    PLAYING SCREEN
 
-function tick() { timeLeft--; timerDisplay.textContent = `Time left: ${timeLeft}s`; if (timeLeft <= 0) { clearInterval(countdownInterval); endRound(); } }
-function startGame() {
-  clearInterval(countdownInterval); correctAnswers = 0; questionsAttempted = 0; coins = 0; difficulty = 1; correctStreak = 0; incorrectStreak = 0;
-  topicScreen.hidden = true; resultsScreen.hidden = true; gameScreen.hidden = false; timeLeft = ROUND_TIME; timerDisplay.textContent = `Time left: ${timeLeft}s`;
-  countdownInterval = setInterval(tick, 1000); generateQuestion();
+startButton.addEventListener("click", showCategoryScreen);
+
+function showCategoryScreen() {
+
+    startScreen.hidden = true;
+    categoryScreen.hidden = false;
 }
 
-document.getElementById("pause_btn").addEventListener("click", () => { clearInterval(countdownInterval); gameScreen.hidden = true; pauseMenu.hidden = false; });
-document.getElementById("resume_btn").addEventListener("click", () => { pauseMenu.hidden = true; gameScreen.hidden = false; countdownInterval = setInterval(tick, 1000); });
-document.getElementById("restart_btn").addEventListener("click", () => { pauseMenu.hidden = true; startGame(); });
-document.getElementById("home_btn").addEventListener("click", () => { clearInterval(countdownInterval); pauseMenu.hidden = true; startScreen.hidden = false; });
-document.getElementById("change_topic_btn").addEventListener("click", () => { clearInterval(countdownInterval); pauseMenu.hidden = true; categoryScreen.hidden = false; });
+categoryButtons.forEach(function(button) {
 
-document.getElementById("view_stats_btn").addEventListener("click", () => {
-  const stats = studentData().overallStats;
-  const accuracy = stats.totalQuestions ? Math.round(stats.totalCorrect / stats.totalQuestions * 100) : 0;
-  const average = stats.totalQuestions ? (stats.totalTimePlayed / stats.totalQuestions).toFixed(1) : 0;
-  document.getElementById("stat_rounds").textContent = `Rounds played: ${stats.roundsPlayed}`;
-  document.getElementById("stat_questions").textContent = `Total questions answered: ${stats.totalQuestions}`;
-  document.getElementById("stat_accuracy").textContent = `Overall accuracy: ${accuracy}%`;
-  document.getElementById("stat_difficulty").textContent = `Best difficulty reached: ${stats.bestDifficulty}`;
-  document.getElementById("stat_speed").textContent = `Average time per question: ${average}s`;
-  startScreen.hidden = true; statsScreen.hidden = false;
+    button.addEventListener("click", function() {
+
+        selectedCategory = button.dataset.category;
+
+        categoryScreen.hidden = true;
+        topicScreen.hidden = false;
+
+        groupSpeed.hidden = (selectedCategory !== "speed");
+        groupShapes.hidden = (selectedCategory !== "shapes");
+        groupData.hidden = (selectedCategory !== "data");
+    });
 });
-document.getElementById("stats_back_btn").addEventListener("click", () => { statsScreen.hidden = true; startScreen.hidden = false; });
+
+
+topicButtons.forEach(function(button) {
+
+    button.addEventListener("click", function() {
+
+        selectedTopic = button.dataset.topic;
+
+        startGame();
+    });
+});
+
+function startGame() {
+
+    // resets all values back to 0 when new game starts
+    correctAnswers = 0;
+    questionsAttempted = 0;
+    coins = 0;
+    difficulty = 1;
+    correctStreak = 0;
+    incorrectStreak = 0;
+
+    topicScreen.hidden = true;
+    resultsScreen.hidden = true;
+    gameScreen.hidden = false;
+
+    timeLeft = ROUND_TIME;
+    timerDisplay.textContent = "Time left: " + timeLeft + "s";
+
+    clearInterval(countdownInterval);  //  stops any previous countdown
+
+    countdownInterval = setInterval(function() {   // set interval runs every second subtracting 1 from time left
+
+        timeLeft--;  // subtracts 1 from timeleft
+        timerDisplay.textContent = "Time left: " + timeLeft + "s";  // updates time on screen to the new time left
+
+        if (timeLeft <= 0) {   // if it gets to 0 we stop the interval and call end round
+            clearInterval(countdownInterval);
+            endRound();
+        }
+
+    }, 1000);
+
+    generateQuestion();
+}
+
+//    PAUSE MENU
+
+pauseButton.addEventListener("click", pauseGame);  // when pause button clicked pauseGame function is ran
+
+function pauseGame() {
+
+    clearInterval(countdownInterval);  //  stops the timer counting down while paused
+
+    gameScreen.hidden = true;
+    pauseMenu.hidden = false;
+}
+
+resumeButton.addEventListener("click", resumeGame);
+
+//    STATS SCREEN
+
+viewStatsButton.addEventListener("click", showStats);
+
+function showStats() {
+
+    let overallStats = allStudents[currentStudent].overallStats;
+
+    startScreen.hidden = true;
+    statsScreen.hidden = false;
+
+    let overallAccuracy = overallStats.totalQuestions > 0  // has the player answered more than 0 questions ever?
+        ? Math.round((overallStats.totalCorrect / overallStats.totalQuestions) * 100)  //  ? = if thats true then... works out %
+        : 0;  //  : = else do this... if no questions then stay at 0
+
+    let averageSpeed = overallStats.totalQuestions > 0
+        ? (overallStats.totalTimePlayed / overallStats.totalQuestions).toFixed(1)
+        : 0;
+
+    statRounds.textContent = "Rounds played: " + overallStats.roundsPlayed;
+    statQuestions.textContent = "Total questions answered: " + overallStats.totalQuestions;
+    statAccuracy.textContent = "Overall accuracy: " + overallAccuracy + "%";
+    statDifficulty.textContent = "Best difficulty reached: " + overallStats.bestDifficulty;
+    statSpeed.textContent = "Average time per question: " + averageSpeed + "s";
+}
+
+statsBackButton.addEventListener("click", function() {
+
+    statsScreen.hidden = true;
+    startScreen.hidden = false;
+});
+
+function resumeGame() {
+
+    pauseMenu.hidden = true;
+    gameScreen.hidden = false;
+
+    //  restarts the countdown from wherever timeLeft currently is, rather than resetting it
+    countdownInterval = setInterval(function() {
+
+        timeLeft--;
+        timerDisplay.textContent = "Time left: " + timeLeft + "s";
+
+        if (timeLeft <= 0) {
+            clearInterval(countdownInterval);
+            endRound();
+        }
+
+    }, 1000);
+}
+
+restartButton.addEventListener("click", function() {
+
+    pauseMenu.hidden = true;
+    startGame();  //  reuses your existing startGame function to reset everything
+});
+
+homeButton.addEventListener("click", function() {
+
+    clearInterval(countdownInterval);  //  makes sure the old timer definitely stops
+
+    pauseMenu.hidden = true;
+    gameScreen.hidden = true;
+    startScreen.hidden = false;
+});
+
+changeTopicButton.addEventListener("click", function() {
+
+    clearInterval(countdownInterval);
+
+    pauseMenu.hidden = true;
+    gameScreen.hidden = true;
+    categoryScreen.hidden = false;
+});
+
+
+//     GENERATES QUESTIONS
 
 function generateQuestion() {
-  let operation = selectedTopic;
-  if (operation === "mixed") operation = ["+", "-", "x", "/"][Math.floor(Math.random() * 4)];
-  if (operation === "shapes-mixed") operation = ["area", "perimeter"][Math.floor(Math.random() * 2)];
-  let number1, number2;
-  if (operation === "+") { number1 = random(10 * difficulty); number2 = random(10 * difficulty); correctAnswer = number1 + number2; }
-  else if (operation === "-") { number1 = random(10 * difficulty); number2 = Math.floor(Math.random() * number1) + 1; correctAnswer = number1 - number2; }
-  else if (operation === "x") { number1 = random(5 * difficulty); number2 = random(10); correctAnswer = number1 * number2; }
-  else if (operation === "/") { number2 = random(10); correctAnswer = random(5 * difficulty); number1 = number2 * correctAnswer; }
-  else if (operation === "area") { const bottomWidth = random(5) + 5, bottomHeight = random(3) + 1, topWidth = Math.floor(Math.random() * (bottomWidth - 3)) + 2, topHeight = random(4) + 2; shapeDimensions = { bottomWidth, bottomHeight, topWidth, topHeight }; correctAnswer = bottomWidth * bottomHeight + topWidth * topHeight; }
-  else { number1 = random(10 * difficulty); number2 = random(10 * difficulty); correctAnswer = (number1 + number2) * 2; }
-  if (operation === "area") { questionDisplay.textContent = "This shape is made of two rectangles. What is its total area?"; drawLShape(shapeDimensions); shapeDisplay.hidden = false; }
-  else if (operation === "perimeter") { questionDisplay.textContent = `A rectangle is ${number1}cm wide and ${number2}cm tall. What is its perimeter?`; drawRectangle(number1, number2); shapeDisplay.hidden = false; }
-  else { questionDisplay.textContent = `${number1} ${operation} ${number2} = ?`; shapeDisplay.hidden = true; }
-  coinsDisplay.textContent = `Coins: ${coins}`; answerInput.value = ""; feedback.textContent = ""; answerInput.focus();
+
+    let operation;
+
+    if (selectedTopic === "mixed") {
+
+        let operations = ["+", "-", "x", "/"];
+        // math.floor always rounds a number down to integer
+        operation = operations[Math.floor(Math.random() * operations.length)];
+
+    } else if (selectedTopic === "shapes-mixed") {
+
+        let shapeOperations = ["area", "perimeter"];
+        operation = shapeOperations[Math.floor(Math.random() * shapeOperations.length)];
+
+    } else if (selectedTopic === "data-mixed") {
+
+        let dataOperations = ["coordinates", "barchart"];
+        operation = dataOperations[Math.floor(Math.random() * dataOperations.length)];
+
+    } else {
+
+        operation = selectedTopic;
+    }
+
+    let number1;
+    let number2;
+    let questionText;
+    let chartData;
+    let gridMax = 8;
+    askingBoth = false;
+
+    if (operation === "+") {
+
+        // chooses random num 1-10/20/30
+        // +1 is needed to get to 10 rather than 9 because math.random is always less than 1, 0.999...
+        number1 = Math.floor(Math.random() * (10 * difficulty)) + 1;
+        number2 = Math.floor(Math.random() * (10 * difficulty)) + 1;
+
+        correctAnswer = number1 + number2;
+
+    } else if (operation === "-") {
+
+        number1 = Math.floor(Math.random() * (10 * difficulty)) + 1;
+        number2 = Math.floor(Math.random() * number1) + 1;  //  uses number 1 to esnure no negatives are made
+
+        correctAnswer = number1 - number2;
+
+    } else if (operation === "x") {
+
+        number1 = Math.floor(Math.random() * (5 * difficulty)) + 1; // smaller number chosen so not too hard
+        number2 = Math.floor(Math.random() * 10) + 1;
+
+        correctAnswer = number1 * number2;
+
+    } else if (operation === "/") {
+
+        // calculates answer beforehand to ensure its positive
+        number2 = Math.floor(Math.random() * 10) + 1;
+        correctAnswer = Math.floor(Math.random() * (5 * difficulty)) + 1;
+        number1 = number2 * correctAnswer;
+
+    } else if (operation === "area") {
+
+        // "bottom" rectangle: full width, short height
+        let bottomWidth = Math.floor(Math.random() * 5) + 6;   // 6-10
+        let bottomHeight = Math.floor(Math.random() * 3) + 2;  // 2-4
+
+        // "top" rectangle: narrower, sits on the left side
+        let topWidth = Math.floor(Math.random() * (bottomWidth - 3)) + 2;  // stays smaller than bottomWidth
+        let topHeight = Math.floor(Math.random() * 4) + 3;   // 3-6
+
+        correctAnswer = (bottomWidth * bottomHeight) + (topWidth * topHeight);
+
+        // store these 4 numbers so drawLShape can use them later
+        shapeDimensions = { bottomWidth, bottomHeight, topWidth, topHeight };
+
+    } else if (operation === "perimeter") {
+
+        number1 = Math.floor(Math.random() * (10 * difficulty)) + 1;
+        number2 = Math.floor(Math.random() * (10 * difficulty)) + 1;
+
+        correctAnswer = (number1 + number2) * 2;
+
+        } else if (operation === "coordinates") {
+
+        // grid gets bigger as difficulty rises: 8, 10, then 12 (never more than 12)
+        gridMax = Math.min(12, 6 + difficulty * 2);
+
+        number1 = Math.floor(Math.random() * gridMax) + 1;
+        number2 = Math.floor(Math.random() * gridMax) + 1;
+
+        if (difficulty >= 2) {
+
+            // harder: the player has to give both coordinates
+            askingBoth = true;
+            questionText = "Look at the red dot. What are its coordinates? Type the x (across) first, then the y (up).";
+            correctAnswer = number1;
+            correctAnswer2 = number2;
+
+        } else if (Math.random() < 0.5) {
+
+            questionText = "Look at the red dot. What is its x-coordinate? (how far across)";
+            correctAnswer = number1;
+
+        } else {
+
+            questionText = "Look at the red dot. What is its y-coordinate? (how far up)";
+            correctAnswer = number2;
+        }
+
+    } else if (operation === "barchart") {
+
+        // bar heights get bigger as difficulty rises: 12, 16, then 20 (never more than 20)
+        let maxValue = Math.min(20, 8 + difficulty * 4);
+
+        // each chart is about a different topic
+        let themes = [
+            { title: "favourite pets", names: ["Cats", "Dogs", "Fish", "Birds", "Rabbits"] },
+            { title: "favourite fruits", names: ["Apples", "Bananas", "Grapes", "Oranges", "Pears"] },
+            { title: "favourite sports", names: ["Football", "Netball", "Swimming", "Tennis", "Cricket"] },
+            { title: "favourite colours", names: ["Red", "Blue", "Green", "Yellow", "Purple"] },
+            { title: "favourite lunches", names: ["Pizza", "Pasta", "Sandwich", "Soup", "Rice"] }
+        ];
+
+        let theme = themes[Math.floor(Math.random() * themes.length)];
+
+        // random 0 or 1, plus 2, gives 2 or 3 bars
+        let numberOfBars = Math.floor(Math.random() * 2) + 2;
+
+        let labels = [];
+        let values = [];
+
+        // keeps picking until there are enough different bar names
+        while (labels.length < numberOfBars) {
+
+            let name = theme.names[Math.floor(Math.random() * theme.names.length)];
+
+            if (!labels.includes(name)) {
+                labels.push(name);
+            }
+        }
+
+        // keeps picking until there are enough different bar heights (3 up to maxValue)
+        while (values.length < numberOfBars) {
+
+            let value = Math.floor(Math.random() * (maxValue - 2)) + 3;
+
+            if (!values.includes(value)) {
+                values.push(value);
+            }
+        }
+
+        chartData = { labels: labels, values: values, axisMax: maxValue };
+
+        // pick which bar to ask about
+        let a = Math.floor(Math.random() * numberOfBars);
+
+        if (Math.random() < 0.5) {
+
+            questionText = "The chart shows children's " + theme.title + ". How many children chose " + labels[a] + "?";
+            correctAnswer = values[a];
+
+        } else {
+
+            // pick a second bar that is different from the first
+            let b = Math.floor(Math.random() * numberOfBars);
+
+            while (b === a) {
+                b = Math.floor(Math.random() * numberOfBars);
+            }
+
+            // make sure a is the taller bar, so the answer is never negative
+            if (values[a] < values[b]) {
+                let temp = a;
+                a = b;
+                b = temp;
+            }
+
+            questionText = "How many more children chose " + labels[a] + " than " + labels[b] + "?";
+            correctAnswer = values[a] - values[b];
+        }
+    }
+
+
+    if (operation === "area") {
+
+        questionDisplay.textContent = "This shape is made of two rectangles. What is its total area?";
+        drawLShape(shapeDimensions);
+        shapeDisplay.style.display = "block";
+
+    } else if (operation === "perimeter") {
+
+        questionDisplay.textContent = "A rectangle is " + number1 + "cm wide and " + number2 + "cm tall. What is its perimeter?";
+        drawRectangle(number1, number2);
+        shapeDisplay.style.display = "block";
+
+        } else if (operation === "coordinates") {
+
+            questionDisplay.textContent = questionText;
+            drawGrid(number1, number2, gridMax);
+            shapeDisplay.style.display = "block";
+
+    } else if (operation === "barchart") {
+
+        questionDisplay.textContent = questionText;
+        drawBarChart(chartData);
+        shapeDisplay.style.display = "block";
+
+    } else {
+
+        questionDisplay.textContent = number1 + " " + operation + " " + number2 + " = ?";
+        shapeDisplay.style.display = "none";
+
+    }
+
+    coinsDisplay.textContent = "Coins: " + coins;
+
+    answerInput.value = "";
+    answerInput2.value = "";
+    feedback.textContent = "";
+
+    // the second box only shows when the question needs two answers
+    answerInput2.hidden = !askingBoth;
+
+    if (askingBoth) {
+        answerInput.placeholder = "x";
+    } else {
+        answerInput.placeholder = "";
+    }
+
+    answerInput.focus();
 }
-function random(max) { return Math.floor(Math.random() * max) + 1; }
-function drawLShape(d) { const s = 13, x = 60, y = 40, bw = d.bottomWidth * s, bh = d.bottomHeight * s, tw = d.topWidth * s, th = d.topHeight * s; shapeDisplay.innerHTML = `<polygon points="${x},${y} ${x + tw},${y} ${x + tw},${y + th} ${x + bw},${y + th} ${x + bw},${y + th + bh} ${x},${y + th + bh}" fill="lightblue" stroke="black" stroke-width="2"/><text x="${x + tw / 2}" y="${y - 8}" text-anchor="middle">${d.topWidth}cm</text><text x="${x + bw / 2}" y="${y + th + bh + 16}" text-anchor="middle">${d.bottomWidth}cm</text><text x="${x + bw + 16}" y="${y + th + bh / 2}" text-anchor="middle" transform="rotate(-90 ${x + bw + 16} ${y + th + bh / 2})">${d.bottomHeight}cm</text>`; }
-function drawRectangle(width, height) { const s = 10, x = 40, y = 30, w = width * s, h = height * s; shapeDisplay.innerHTML = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="lightblue" stroke="black" stroke-width="2"/><text x="${x + w / 2}" y="${y - 10}" text-anchor="middle">${width}cm</text><text x="${x - 18}" y="${y + h / 2}" text-anchor="middle" transform="rotate(-90 ${x - 18} ${y + h / 2})">${height}cm</text>`; }
+
+submitButton.addEventListener("click", checkAnswer);
+// if enter key is pressed, submits answer
+answerInput.addEventListener("keydown", function(event) {
+
+    if (event.key === "Enter") {
+        checkAnswer();
+    }
+});
+
+answerInput2.addEventListener("keydown", function(event) {
+
+    if (event.key === "Enter") {
+        checkAnswer();
+    }
+});
+
+function drawLShape(dims) {
+
+    let scale = 13;
+
+    let bw = dims.bottomWidth * scale;
+    let bh = dims.bottomHeight * scale;
+    let tw = dims.topWidth * scale;
+    let th = dims.topHeight * scale;
+
+    let startX = 60;
+    let startY = 40;
+
+    // the 6 corner points of the L-shape, going clockwise
+    let points =
+        startX + "," + startY + " " +
+        (startX + tw) + "," + startY + " " +
+        (startX + tw) + "," + (startY + th) + " " +
+        (startX + bw) + "," + (startY + th) + " " +
+        (startX + bw) + "," + (startY + th + bh) + " " +
+        startX + "," + (startY + th + bh);
+
+    shapeDisplay.innerHTML =
+        '<polygon points="' + points + '" style="fill:lightblue;stroke:black;stroke-width:2" />' +
+
+        // top section width label
+        '<text x="' + (startX + tw / 2) + '" y="' + (startY - 8) + '" text-anchor="middle" font-size="12">' + dims.topWidth + 'cm</text>' +
+
+        // top section height label
+        '<text x="' + (startX + tw + 18) + '" y="' + (startY + th / 2 - 10) + '" text-anchor="middle" transform="rotate(-90, ' + (startX + tw + 18) + ', ' + (startY + th / 2 - 10) + ')" font-size="12">' + dims.topHeight + 'cm</text>' +
+
+        // bottom section extra width label
+        '<text x="' + (startX + bw / 2) + '" y="' + (startY + th + bh + 15) + '" text-anchor="middle" font-size="12">' + dims.bottomWidth + 'cm</text>' +
+
+        // bottom section height label
+        '<text x="' + (startX + bw + 15) + '" y="' + (startY + th + bh / 2) + '" text-anchor="middle" transform="rotate(-90, ' + (startX + bw + 15) + ', ' + (startY + th + bh / 2) + ')" font-size="12">' + dims.bottomHeight + 'cm</text>';
+}
 
 function checkAnswer() {
-  if (answerInput.value === "") { feedback.textContent = "Please enter an answer."; return; }
-  questionsAttempted++; const answer = Number(answerInput.value);
-  if (answer === correctAnswer) { correctAnswers++; coins += 5; correctStreak++; incorrectStreak = 0; feedback.textContent = "Correct!"; if (correctStreak >= 3) { difficulty++; coins += 10; correctStreak = 0; feedback.textContent = "Correct! Difficulty increased! +10 bonus coins!"; } }
-  else { incorrectStreak++; correctStreak = 0; feedback.textContent = `Incorrect! The answer was ${correctAnswer}.`; if (incorrectStreak >= 2) { difficulty = Math.max(1, difficulty - 1); incorrectStreak = 0; feedback.textContent += " Let's slow things down!"; } }
-  coinsDisplay.textContent = `Coins: ${coins}`; setTimeout(() => { if (timeLeft > 0) generateQuestion(); }, 900);
+
+    let playerAnswer = Number(answerInput.value); // str -> num
+
+    // checks if either box is empty
+    if (answerInput.value === "" || (askingBoth && answerInput2.value === "")) {
+
+        feedback.textContent = "Please enter an answer.";
+        return;
+    }
+
+    // only counts as an attempt once a real answer has been entered
+    questionsAttempted++;
+
+    // works out if the answer is right, and what to show if it's wrong
+    let isCorrect;
+    let answerText;
+
+    if (askingBoth) {
+
+        isCorrect = (playerAnswer === correctAnswer && Number(answerInput2.value) === correctAnswer2);
+        answerText = "(" + correctAnswer + ", " + correctAnswer2 + ")";
+
+    } else {
+
+        isCorrect = (playerAnswer === correctAnswer);
+        answerText = correctAnswer;
+    }
+
+    // rewards if correct
+    if (isCorrect) {
+
+        feedback.textContent = "Correct!";
+        coins = coins + 5;
+        correctAnswers++;
+
+        correctStreak++;
+        incorrectStreak = 0;
+
+        if (correctStreak >= 3) {
+
+            difficulty++;
+            coins = coins + 10;
+            correctStreak = 0;
+            feedback.textContent = "Correct! Difficulty increased! +10 bonus coins!";
+        }
+
+    } else {
+
+        feedback.textContent = "Incorrect! The answer was " + answerText;
+
+        incorrectStreak++;
+        correctStreak = 0;
+
+        // the same pattern applies for incorrect answers
+        if (incorrectStreak >= 2) {
+
+            // stops difficulty going below 1
+            if (difficulty > 1) {
+                difficulty--;
+            }
+
+            incorrectStreak = 0;
+            feedback.textContent = "Incorrect! The answer was " + answerText + ". lets slow things down!";
+        }
+    }
+
+    coinsDisplay.textContent = "Coins: " + coins;
+
+    // gives user 1 second to read feedback
+    setTimeout(nextQuestion, 1000);
 }
-document.getElementById("submit_btn").addEventListener("click", checkAnswer);
-answerInput.addEventListener("keydown", (event) => { if (event.key === "Enter") checkAnswer(); });
+
+
+//    NEXT QUESTION
+
+function nextQuestion() {
+
+    if (timeLeft > 0) {
+        generateQuestion();
+    }
+}
+
+//   RECTANGLE
+
+function drawRectangle(width, height) {
+
+    // scales the numbers up so small rectangles are still visible on screen
+    let scale = 10;
+    let displayWidth = width * scale;
+    let displayHeight = height * scale;
+
+    let startX = 40;
+    let startY = 30;
+
+    // innerHTML lets us insert actual HTML into an element - can create real shapes
+    shapeDisplay.innerHTML =
+        '<rect x="' + startX + '" y="' + startY + '" width="' + displayWidth + '" height="' + displayHeight + '" style="fill:lightblue;stroke:black;stroke-width:2" />' +
+        '<text x="' + (startX + displayWidth / 2) + '" y="' + (startY - 10) + '" text-anchor="middle">' + width + 'cm</text>' +
+        '<text x="' + (startX - 20) + '" y="' + (startY + displayHeight / 2) + '" text-anchor="middle" transform="rotate(-90, ' + (startX - 20) + ', ' + (startY + displayHeight / 2) + ')">' + height + 'cm</text>';
+}
+
+//   END ROUND
+
+//   END ROUND
 
 function endRound() {
-  const stats = studentData().overallStats; stats.totalQuestions += questionsAttempted; stats.totalCorrect += correctAnswers; stats.totalTimePlayed += ROUND_TIME; stats.roundsPlayed++; stats.bestDifficulty = Math.max(stats.bestDifficulty, difficulty);
-  const student = studentData(); if (correctAnswers > student.bestScore) student.bestScore = correctAnswers; saveAllStudents();
-  const accuracy = questionsAttempted ? Math.round(correctAnswers / questionsAttempted * 100) : 0;
-  document.getElementById("final_score").textContent = `${correctAnswers} out of ${questionsAttempted} correct`;
-  document.getElementById("final_coins").textContent = `Coins: ${coins}`; document.getElementById("final_accuracy").textContent = `Accuracy: ${accuracy}%`;
-  document.getElementById("average_time").textContent = `Average time per question: ${questionsAttempted ? (ROUND_TIME / questionsAttempted).toFixed(1) : 0}s`;
-  bestScoreDisplay.textContent = `Best: ${student.bestScore}`; gameScreen.hidden = true; resultsScreen.hidden = false;
+
+    let student = allStudents[currentStudent];
+    let overallStats = student.overallStats;
+
+    gameScreen.hidden = true;
+    resultsScreen.hidden = false;
+
+    //  update overall stats with this round's numbers
+    overallStats.totalQuestions = overallStats.totalQuestions + questionsAttempted;
+    overallStats.totalCorrect = overallStats.totalCorrect + correctAnswers;
+    overallStats.totalTimePlayed = overallStats.totalTimePlayed + ROUND_TIME;
+    overallStats.roundsPlayed = overallStats.roundsPlayed + 1;
+
+    // checks if this rounds difficulty is harder than previous
+    if (difficulty > overallStats.bestDifficulty) {
+        overallStats.bestDifficulty = difficulty;
+    }
+
+    finalScore.textContent = correctAnswers + " out of " + questionsAttempted + " correct";
+    finalCoins.textContent = "Coins: " + coins;
+
+    let accuracy = questionsAttempted > 0
+        ? Math.round((correctAnswers / questionsAttempted) * 100)
+        : 0;
+    finalAccuracy.textContent = "Accuracy: " + accuracy + "%";
+
+    let averageTime = 0;
+
+    if (questionsAttempted > 0) {
+        averageTime = (ROUND_TIME / questionsAttempted).toFixed(1);
+    }
+
+    averageTimeDisplay.textContent = "Average time per question: " + averageTime + "s";
+
+    // best score is now stored on this student, not shared by everyone
+    if (correctAnswers > student.bestScore) {
+
+        student.bestScore = correctAnswers;
+        bestScoreDisplay.textContent = "New best! " + student.bestScore;
+
+    } else {
+
+        bestScoreDisplay.textContent = "Best: " + student.bestScore;
+    }
+
+    // saves everything for every student in one go
+    saveAllStudents();
 }
-document.getElementById("play_again_btn").addEventListener("click", startGame);
-document.getElementById("results_home_btn").addEventListener("click", () => { resultsScreen.hidden = true; startScreen.hidden = false; });
+
+//   COORDINATE GRID
+
+function drawGrid(pointX, pointY) {
+
+    let cell = 30;       // pixels between grid lines
+    let originX = 40;    // where (0,0) sits on the svg
+    let originY = 270;
+    let max = 8;         // grid goes from 0 to 8
+
+    let svg = "";
+
+    for (let i = 0; i <= max; i++) {
+
+        // vertical grid line
+        svg += '<line x1="' + (originX + i * cell) + '" y1="' + originY + '" x2="' + (originX + i * cell) + '" y2="' + (originY - max * cell) + '" stroke="lightgray" />';
+
+        // horizontal grid line
+        svg += '<line x1="' + originX + '" y1="' + (originY - i * cell) + '" x2="' + (originX + max * cell) + '" y2="' + (originY - i * cell) + '" stroke="lightgray" />';
+
+        // number under the grid
+        svg += '<text x="' + (originX + i * cell) + '" y="' + (originY + 18) + '" text-anchor="middle" font-size="12">' + i + '</text>';
+
+        // number beside the grid
+        svg += '<text x="' + (originX - 10) + '" y="' + (originY - i * cell + 4) + '" text-anchor="middle" font-size="12">' + i + '</text>';
+    }
+
+    // the two main axes, in black
+    svg += '<line x1="' + originX + '" y1="' + originY + '" x2="' + (originX + max * cell) + '" y2="' + originY + '" stroke="black" stroke-width="2" />';
+    svg += '<line x1="' + originX + '" y1="' + originY + '" x2="' + originX + '" y2="' + (originY - max * cell) + '" stroke="black" stroke-width="2" />';
+
+    // the red dot
+    svg += '<circle cx="' + (originX + pointX * cell) + '" cy="' + (originY - pointY * cell) + '" r="6" fill="red" />';
+
+    shapeDisplay.innerHTML = svg;
+}
+
+
+//   BAR CHART
+
+//   COORDINATE GRID
+
+function drawGrid(pointX, pointY, max) {
+
+    let cell = Math.floor(240 / max);   // squares get smaller as the grid gets bigger, so it always fits
+    let originX = 40;                   // where (0,0) sits on the svg
+    let originY = 270;
+
+    let svg = "";
+
+    for (let i = 0; i <= max; i++) {
+
+        // vertical grid line
+        svg += '<line x1="' + (originX + i * cell) + '" y1="' + originY + '" x2="' + (originX + i * cell) + '" y2="' + (originY - max * cell) + '" stroke="lightgray" />';
+
+        // horizontal grid line
+        svg += '<line x1="' + originX + '" y1="' + (originY - i * cell) + '" x2="' + (originX + max * cell) + '" y2="' + (originY - i * cell) + '" stroke="lightgray" />';
+
+        // number under the grid
+        svg += '<text x="' + (originX + i * cell) + '" y="' + (originY + 18) + '" text-anchor="middle" font-size="12">' + i + '</text>';
+
+        // number beside the grid
+        svg += '<text x="' + (originX - 10) + '" y="' + (originY - i * cell + 4) + '" text-anchor="middle" font-size="12">' + i + '</text>';
+    }
+
+    // the two main axes, in black
+    svg += '<line x1="' + originX + '" y1="' + originY + '" x2="' + (originX + max * cell) + '" y2="' + originY + '" stroke="black" stroke-width="2" />';
+    svg += '<line x1="' + originX + '" y1="' + originY + '" x2="' + originX + '" y2="' + (originY - max * cell) + '" stroke="black" stroke-width="2" />';
+
+    // the red dot
+    svg += '<circle cx="' + (originX + pointX * cell) + '" cy="' + (originY - pointY * cell) + '" r="6" fill="red" />';
+
+    shapeDisplay.innerHTML = svg;
+}
+
+
+//   BAR CHART
+
+function drawBarChart(data) {
+
+    let originX = 40;
+    let originY = 260;
+    let unit = Math.floor(230 / data.axisMax);   // pixels for each 1 of height, smaller when the axis is taller
+    let barWidth = 55;
+    let gap = 25;
+    let count = data.values.length;
+    let chartWidth = count * (barWidth + gap);
+
+    let svg = "";
+
+    // grid lines for every 1, numbers only on every 2nd line
+    for (let i = 0; i <= data.axisMax; i++) {
+
+        svg += '<line x1="' + originX + '" y1="' + (originY - i * unit) + '" x2="' + (originX + chartWidth) + '" y2="' + (originY - i * unit) + '" stroke="lightgray" />';
+
+        if (i % 2 === 0) {
+            svg += '<text x="' + (originX - 8) + '" y="' + (originY - i * unit + 4) + '" text-anchor="end" font-size="12">' + i + '</text>';
+        }
+    }
+
+    // the bars and their labels
+    for (let i = 0; i < count; i++) {
+
+        let barHeight = data.values[i] * unit;
+        let barX = originX + gap / 2 + i * (barWidth + gap);
+
+        svg += '<rect x="' + barX + '" y="' + (originY - barHeight) + '" width="' + barWidth + '" height="' + barHeight + '" fill="lightblue" stroke="black" />';
+        svg += '<text x="' + (barX + barWidth / 2) + '" y="' + (originY + 18) + '" text-anchor="middle" font-size="12">' + data.labels[i] + '</text>';
+    }
+
+    // bottom axis
+    svg += '<line x1="' + originX + '" y1="' + originY + '" x2="' + (originX + chartWidth) + '" y2="' + originY + '" stroke="black" stroke-width="2" />';
+
+    shapeDisplay.innerHTML = svg;
+}
+
+//   PLAY AGAIN
+
+playAgainButton.addEventListener("click", startGame);
+
+resultsHomeButton.addEventListener("click", function() {
+
+    resultsScreen.hidden = true;
+    startScreen.hidden = false;
+});
