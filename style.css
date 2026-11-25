@@ -277,3 +277,83 @@ input:focus {
     font-weight: 600;
     color: #5C5F73;
 }
+
+
+/* ---------- 9. LOGIN ---------- */
+
+label {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    margin-top: 14px;
+}
+
+#login-message {
+    color: #C62828;
+    font-weight: 800;
+    min-height: 24px;
+}
+
+#save-message {
+    font-size: 20px;
+    font-weight: 800;
+    min-height: 26px;
+}
+
+
+/* ---------- 10. TEACHER AREA ---------- */
+
+.error {
+    color: #C62828;
+    font-weight: 800;
+    min-height: 24px;
+}
+
+/* big class buttons */
+.class-btn {
+    display: block;
+    width: 100%;
+    max-width: 480px;
+    margin: 14px auto;
+    padding: 16px;
+    font-size: 26px;
+}
+
+.class-details {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* rows for pupils and rounds */
+.list-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background-color: #FFFFFF;
+    border: 3px solid #E6E1D9;
+    border-radius: 16px;
+    padding: 10px 16px;
+    margin: 10px 0;
+    text-align: left;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.small-btn {
+    font-size: 16px;
+    padding: 8px 16px;
+    min-height: 40px;
+    margin: 0 0 0 6px;
+}
+
+#back-to-classes,
+#back-to-class,
+#teacher-logout-btn {
+    --colour: #FFFFFF;
+    --shadow: #E6E1D9;
+    color: #3F6FA8;
+    border: 3px solid #8DB6E2;
+}
