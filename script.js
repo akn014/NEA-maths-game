@@ -1,9 +1,10 @@
 //  HTML INFO
 
 const loginScreen = document.getElementById("login-screen");
-const existingStudentsDiv = document.getElementById("existing-students");
-const newStudentInput = document.getElementById("new-student-name");
-const createStudentButton = document.getElementById("create-student-btn");
+const classCodeInput = document.getElementById("class-code");
+const pupilCodeInput = document.getElementById("pupil-code");
+const loginButton = document.getElementById("login-btn");
+const loginMessage = document.getElementById("login-message");
 
 const startScreen = document.getElementById("start_screen");
 const gameScreen = document.getElementById("game-screen");
@@ -19,6 +20,12 @@ const groupData = document.getElementById("group-data");
 
 const countScreen = document.getElementById("count-screen");
 const countButtons = document.querySelectorAll(".count-btn");
+const customCountInput = document.getElementById("custom_count");
+const customCountButton = document.getElementById("custom_count_btn");
+const customCountError = document.getElementById("custom_count_error");
+
+const difficultyScreen = document.getElementById("difficulty-screen");
+const difficultyButtons = document.querySelectorAll(".difficulty-btn");
 
 const statsScreen = document.getElementById("stats-screen");
 const viewStatsButton = document.getElementById("view_stats_btn");
@@ -27,8 +34,7 @@ const statsBackButton = document.getElementById("stats_back_btn");
 const statRounds = document.getElementById("stat_rounds");
 const statQuestions = document.getElementById("stat_questions");
 const statAccuracy = document.getElementById("stat_accuracy");
-const statDifficulty = document.getElementById("stat_difficulty");
-const statSpeed = document.getElementById("stat_speed");
+const statBest = document.getElementById("stat_best");
 
 const pauseButton = document.getElementById("pause_btn");
 const pauseMenu = document.getElementById("pause-menu");
@@ -57,18 +63,12 @@ const finalScore = document.getElementById("final_score");
 const finalCoins = document.getElementById("final_coins");
 const finalAccuracy = document.getElementById("final_accuracy");
 const averageTimeDisplay = document.getElementById("average_time");
+const saveMessage = document.getElementById("save-message");
+const retrySaveButton = document.getElementById("retry-save-btn");
+const signOutButton = document.getElementById("signout_btn");
 
 
 //    GAME VARIABLES
-
-let allStudents = {};  //  creates an empty array that will hold every students data 
-let currentStudent = null;  //  creates an empty box to hold every students data 
-
-let savedStudents = localStorage.getItem("allStudents");  //  fetches previously saved student data from browsers storage 
-
-if (savedStudents !== null) {
-    allStudents = JSON.parse(savedStudents);  //  if something was found when it was fetched it is converted and stored in allStudents
-}
 
 let questionsAttempted = 0;
 let correctAnswers = 0;
@@ -86,6 +86,7 @@ let shapeDimensions = {};
 let gameMode = "timed";        // "timed" = 60 second round, "counted" = choose number of questions
 let totalQuestions = 10;       // how many questions in a counted round
 let secondsElapsed = 0;        // counts UP in counted mode, used for average time
+let startingDifficulty = 1;   // 1 = easy, 2 = medium, 3 = hard
 let waitingForNext = false;    // true during the 1 second feedback pause, stops double submits
 
 let correctAnswer = 0;
@@ -93,70 +94,58 @@ let correctAnswer2 = 0;     // the y answer, only used when two answers are need
 let askingBoth = false;     // true when the question needs two answers
 
 
-function createNewStudent(name) {
+let signedInPupil = null;   // holds the class code and pupil code once signed in
 
-    //  
+async function signIn() {
 
-    allStudents[name] = {
-        overallStats: {
-            totalQuestions: 0,
-            totalCorrect: 0,
-            totalTimePlayed: 0,
-            bestDifficulty: 1,
-            roundsPlayed: 0
-        },
-        bestScore: 0
-    };
+    loginButton.disabled = true;      // stops double clicks while we wait for the server
+    loginMessage.textContent = "";
 
-    saveAllStudents();
-}
-
-function saveAllStudents() {
-    localStorage.setItem("allStudents", JSON.stringify(allStudents));
-}
-
-
-function showLoginScreen() {
-
-    existingStudentsDiv.innerHTML = "";
-
-    for (let name in allStudents) {
-
-        let button = document.createElement("button");
-        button.textContent = name;
-
-        button.addEventListener("click", function() {
-            logInAsStudent(name);
+    try {
+        // asks the server if this class code and pupil code are valid
+        signedInPupil = await requestJson("/api/pupil/login", {
+            classCode: classCodeInput.value,
+            pupilCode: pupilCodeInput.value
         });
 
-        existingStudentsDiv.appendChild(button);
+        classCodeInput.value = "";
+        pupilCodeInput.value = "";
+
+        loginScreen.hidden = true;
+        startScreen.hidden = false;
+
+    } catch (error) {
+        loginMessage.textContent = error.message;   // shows "Check your class code and pupil code."
+
+    } finally {
+        loginButton.disabled = false;
     }
 }
 
-function logInAsStudent(name) {
+loginButton.addEventListener("click", signIn);
 
-    currentStudent = name;
+pupilCodeInput.addEventListener("keydown", function(event) {
 
-    loginScreen.hidden = true;
-    startScreen.hidden = false;
-}
-
-createStudentButton.addEventListener("click", function() {
-
-    let name = newStudentInput.value.trim();
-
-    if (name === "") {
-        return;
+    if (event.key === "Enter") {
+        signIn();
     }
-
-    if (!allStudents[name]) {
-        createNewStudent(name);
-    }
-
-    logInAsStudent(name);
 });
 
-showLoginScreen();
+//   SIGN OUT
+
+signOutButton.addEventListener("click", async function() {
+
+    try {
+        await requestJson("/api/pupil/logout", {});
+    } catch (error) {
+        // even if this fails, we still send the pupil back to the login screen
+    }
+
+    signedInPupil = null;
+
+    startScreen.hidden = true;
+    loginScreen.hidden = false;
+});
 
 //    PLAYING SCREEN
 
@@ -189,11 +178,22 @@ topicButtons.forEach(function(button) {
 
         selectedTopic = button.dataset.topic;
 
+        topicScreen.hidden = true;
+        difficultyScreen.hidden = false;
+    });
+});
+
+difficultyButtons.forEach(function(button) {
+
+    button.addEventListener("click", function() {
+
+        startingDifficulty = Number(button.dataset.level);
+
+        difficultyScreen.hidden = true;
+
         if (selectedCategory === "data") {
 
-            // Data and Graphs: ask how many questions first
             gameMode = "counted";
-            topicScreen.hidden = true;
             countScreen.hidden = false;
 
         } else {
@@ -208,10 +208,37 @@ countButtons.forEach(function(button) {
 
     button.addEventListener("click", function() {
 
-        totalQuestions = Number(button.dataset.count);  // dataset gives text, Number makes it a number
+        totalQuestions = Number(button.dataset.count);
         startGame();
     });
 });
+
+const MAX_QUESTIONS = 100;
+
+customCountButton.addEventListener("click", startCustomRound);
+
+customCountInput.addEventListener("keydown", function(event) {
+
+    if (event.key === "Enter") {
+        startCustomRound();
+    }
+});
+
+function startCustomRound() {
+
+    let amount = Number(customCountInput.value);
+
+    if (customCountInput.value === "" || !Number.isInteger(amount) || amount < 1 || amount > MAX_QUESTIONS) {
+
+        customCountError.textContent = "Please enter a whole number from 1 to " + MAX_QUESTIONS + ".";
+        return;
+    }
+
+    customCountError.textContent = "";
+    totalQuestions = amount;
+    startGame();
+}
+
 
 function startGame() {
 
@@ -219,7 +246,7 @@ function startGame() {
     correctAnswers = 0;
     questionsAttempted = 0;
     coins = 0;
-    difficulty = 1;
+    difficulty = startingDifficulty;
     correctStreak = 0;
     incorrectStreak = 0;
     secondsElapsed = 0;
@@ -289,26 +316,49 @@ resumeButton.addEventListener("click", resumeGame);
 
 viewStatsButton.addEventListener("click", showStats);
 
-function showStats() {
-
-    let overallStats = allStudents[currentStudent].overallStats;
+async function showStats() {
 
     startScreen.hidden = true;
     statsScreen.hidden = false;
 
-    let overallAccuracy = overallStats.totalQuestions > 0  // has the player answered more than 0 questions ever?
-        ? Math.round((overallStats.totalCorrect / overallStats.totalQuestions) * 100)  //  ? = if thats true then... works out %
-        : 0;  //  : = else do this... if no questions then stay at 0
+    statRounds.textContent = "Loading...";
 
-    let averageSpeed = overallStats.totalQuestions > 0
-        ? (overallStats.totalTimePlayed / overallStats.totalQuestions).toFixed(1)
-        : 0;
+    try {
+        // asks the server for this pupil's saved rounds
+        let data = await requestJson("/api/pupil/rounds", {
+            classCode: signedInPupil.classCode,
+            pupilCode: signedInPupil.pupilCode
+        });
 
-    statRounds.textContent = "Rounds played: " + overallStats.roundsPlayed;
-    statQuestions.textContent = "Total questions answered: " + overallStats.totalQuestions;
-    statAccuracy.textContent = "Overall accuracy: " + overallAccuracy + "%";
-    statDifficulty.textContent = "Best difficulty reached: " + overallStats.bestDifficulty;
-    statSpeed.textContent = "Average time per question: " + averageSpeed + "s";
+        let rounds = data.rounds;
+
+        let questionsTotal = 0;
+        let correctTotal = 0;
+        let best = 0;
+
+        // adds up every saved round
+        for (let i = 0; i < rounds.length; i++) {
+
+            questionsTotal = questionsTotal + rounds[i].attempted;
+            correctTotal = correctTotal + rounds[i].score;
+
+            if (rounds[i].score > best) {
+                best = rounds[i].score;
+            }
+        }
+
+        let accuracy = questionsTotal > 0
+            ? Math.round((correctTotal / questionsTotal) * 100)
+            : 0;
+
+        statRounds.textContent = "Rounds played: " + rounds.length;
+        statQuestions.textContent = "Total questions answered: " + questionsTotal;
+        statAccuracy.textContent = "Overall accuracy: " + accuracy + "%";
+        statBest.textContent = "Best score: " + best;
+
+    } catch (error) {
+        statRounds.textContent = error.message;
+    }
 }
 
 statsBackButton.addEventListener("click", function() {
@@ -323,8 +373,8 @@ function resumeGame() {
     gameScreen.hidden = false;
 
     startRoundTimer();
-
 }
+
     restartButton.addEventListener("click", function() {
 
     pauseMenu.hidden = true;
@@ -764,17 +814,66 @@ function drawRectangle(width, height) {
         '<text x="' + (startX - 20) + '" y="' + (startY + displayHeight / 2) + '" text-anchor="middle" transform="rotate(-90, ' + (startX - 20) + ', ' + (startY + displayHeight / 2) + ')">' + height + 'cm</text>';
 }
 
-//   END ROUND
+//   SAVING RESULTS
+
+// the server only knows topics by the codes in games.json,
+// so this turns each topic button's value into its code
+const gameCodes = {
+    "+": "addition",
+    "-": "subtraction",
+    "x": "multiplication",
+    "/": "division",
+    "mixed": "speed-mixed",
+    "area": "area",
+    "perimeter": "perimeter",
+    "shapes-mixed": "shapes-mixed",
+    "coordinates": "coordinates",
+    "barchart": "barchart",
+    "data-mixed": "data-mixed"
+};
+
+let roundResult = null;   // the result waiting to be saved
+
+function saveRound() {
+
+    // roundId is a unique label, so retrying never saves the same round twice
+    roundResult = {
+        roundId: Date.now() + "-" + Math.random().toString(36).slice(2),
+        classCode: signedInPupil.classCode,
+        pupilCode: signedInPupil.pupilCode,
+        gameCode: gameCodes[selectedTopic],
+        score: correctAnswers,
+        attempted: questionsAttempted
+    };
+
+    sendResult();
+}
+
+async function sendResult() {
+
+    retrySaveButton.hidden = true;
+    saveMessage.textContent = "Saving...";
+
+    try {
+        await requestJson("/api/pupil/results", roundResult);   // sends it to the server
+        saveMessage.textContent = "Score saved.";
+
+    } catch (error) {
+        saveMessage.textContent = error.message;
+        retrySaveButton.hidden = false;   // lets the pupil try again
+    }
+}
+
+retrySaveButton.addEventListener("click", sendResult);
+
 
 //   END ROUND
 
 function endRound() {
 
-    let student = allStudents[currentStudent];
-    let overallStats = student.overallStats;
-
     clearInterval(countdownInterval);
 
+    // how long the round lasted: fixed for timed rounds, counted up for chosen-question rounds
     let roundTime;
 
     if (gameMode === "timed") {
@@ -785,17 +884,6 @@ function endRound() {
 
     gameScreen.hidden = true;
     resultsScreen.hidden = false;
-
-    //  update overall stats with this round's numbers
-    overallStats.totalQuestions = overallStats.totalQuestions + questionsAttempted;
-    overallStats.totalCorrect = overallStats.totalCorrect + correctAnswers;
-    overallStats.totalTimePlayed = overallStats.totalTimePlayed + roundTime;
-    overallStats.roundsPlayed = overallStats.roundsPlayed + 1;
-
-    // checks if this rounds difficulty is harder than previous
-    if (difficulty > overallStats.bestDifficulty) {
-        overallStats.bestDifficulty = difficulty;
-    }
 
     finalScore.textContent = correctAnswers + " out of " + questionsAttempted + " correct";
     finalCoins.textContent = "Coins: " + coins;
@@ -813,67 +901,16 @@ function endRound() {
 
     averageTimeDisplay.textContent = "Average time per question: " + averageTime + "s";
 
-    // best score only counts for timed rounds
-    if (gameMode === "timed") {
+    // the best score now lives on the My Stats screen, so it's hidden here
+    bestScoreDisplay.hidden = true;
 
-        bestScoreDisplay.hidden = false;
-
-        if (correctAnswers > student.bestScore) {
-
-            student.bestScore = correctAnswers;
-            bestScoreDisplay.textContent = "New best! " + student.bestScore;
-
-        } else {
-
-            bestScoreDisplay.textContent = "Best: " + student.bestScore;
-        }
-
+    // saves this round to the server (an empty round isn't worth saving)
+    if (questionsAttempted > 0) {
+        saveRound();
     } else {
-
-        bestScoreDisplay.hidden = true;
+        saveMessage.textContent = "";
     }
-    // saves everything for every student in one go
-    saveAllStudents();
 }
-
-//   COORDINATE GRID
-
-function drawGrid(pointX, pointY) {
-
-    let cell = 30;       // pixels between grid lines
-    let originX = 40;    // where (0,0) sits on the svg
-    let originY = 270;
-    let max = 8;         // grid goes from 0 to 8
-
-    let svg = "";
-
-    for (let i = 0; i <= max; i++) {
-
-        // vertical grid line
-        svg += '<line x1="' + (originX + i * cell) + '" y1="' + originY + '" x2="' + (originX + i * cell) + '" y2="' + (originY - max * cell) + '" stroke="lightgray" />';
-
-        // horizontal grid line
-        svg += '<line x1="' + originX + '" y1="' + (originY - i * cell) + '" x2="' + (originX + max * cell) + '" y2="' + (originY - i * cell) + '" stroke="lightgray" />';
-
-        // number under the grid
-        svg += '<text x="' + (originX + i * cell) + '" y="' + (originY + 18) + '" text-anchor="middle" font-size="12">' + i + '</text>';
-
-        // number beside the grid
-        svg += '<text x="' + (originX - 10) + '" y="' + (originY - i * cell + 4) + '" text-anchor="middle" font-size="12">' + i + '</text>';
-    }
-
-    // the two main axes, in black
-    svg += '<line x1="' + originX + '" y1="' + originY + '" x2="' + (originX + max * cell) + '" y2="' + originY + '" stroke="black" stroke-width="2" />';
-    svg += '<line x1="' + originX + '" y1="' + originY + '" x2="' + originX + '" y2="' + (originY - max * cell) + '" stroke="black" stroke-width="2" />';
-
-    // the red dot
-    svg += '<circle cx="' + (originX + pointX * cell) + '" cy="' + (originY - pointY * cell) + '" r="6" fill="red" />';
-
-    shapeDisplay.innerHTML = svg;
-}
-
-
-//   BAR CHART
 
 //   COORDINATE GRID
 
